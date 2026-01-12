@@ -57,5 +57,3 @@ jobs:
             Then apply labels using: gh issue edit ${{ github.event.issue.number }} --add-label "..."
 
             For /dispatch, check if projects/<target> exists, then create reference.
-          claude_args: |
-            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Read,Glob"

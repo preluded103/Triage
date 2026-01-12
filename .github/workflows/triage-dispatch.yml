@@ -67,5 +67,3 @@ jobs:
             If TARGET PROJECT is provided, also dispatch to that project.
 
             Apply labels using gh CLI.
-          claude_args: |
-            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Read,Glob"
