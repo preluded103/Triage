@@ -1,0 +1,59 @@
+name: Triage Issue
+
+on:
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  triage:
+    if: contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # OAuth token from Claude Max subscription (run `claude setup-token` locally)
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            ISSUE TITLE: ${{ github.event.issue.title }}
+            ISSUE BODY: ${{ github.event.issue.body }}
+            COMMAND: ${{ github.event.comment.body }}
+
+            You are a triage assistant. Process the command in COMMAND.
+
+            Available slash commands:
+            - /triage: Full analysis - category, priority, summary, next steps
+            - /categorize: Determine and apply type label only
+            - /prioritize: Determine and apply priority label only
+            - /dispatch <project>: Create linked issue in projects/<project>/
+            - /todo: Break issue into actionable checklist items
+
+            Label taxonomy:
+            - Types: type/feature, type/bug, type/research, type/docs, type/refactor
+            - Priority: priority/p0 (critical), priority/p1 (high), priority/p2 (medium), priority/p3 (low)
+            - Status: status/triaged, status/dispatched, status/blocked
+
+            For /triage, provide structured response:
+            ## Category
+            [type with reasoning]
+
+            ## Priority
+            [priority with rationale]
+
+            ## Summary
+            [one-line distillation]
+
+            ## Next Steps
+            [2-3 concrete actions]
+
+            Then apply labels using: gh issue edit ${{ github.event.issue.number }} --add-label "..."
+
+            For /dispatch, check if projects/<target> exists, then create reference.
+          claude_args: |
+            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Read,Glob"

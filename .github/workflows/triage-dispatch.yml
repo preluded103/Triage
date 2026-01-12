@@ -1,0 +1,69 @@
+name: Manual Triage Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to triage'
+        required: true
+        type: number
+      command:
+        description: 'Triage command (triage, categorize, prioritize, todo)'
+        required: true
+        default: 'triage'
+        type: choice
+        options:
+          - triage
+          - categorize
+          - prioritize
+          - todo
+      target_project:
+        description: 'Target project for dispatch (optional)'
+        required: false
+        type: string
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Issue Details
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_JSON=$(gh issue view ${{ inputs.issue_number }} --json title,body)
+          echo "title=$(echo $ISSUE_JSON | jq -r '.title')" >> $GITHUB_OUTPUT
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo $ISSUE_JSON | jq -r '.body' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # OAuth token from Claude Max subscription (run `claude setup-token` locally)
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ inputs.issue_number }}
+            ISSUE TITLE: ${{ steps.issue.outputs.title }}
+            ISSUE BODY: ${{ steps.issue.outputs.body }}
+            COMMAND: /${{ inputs.command }}
+            TARGET PROJECT: ${{ inputs.target_project }}
+
+            Execute the triage command.
+
+            Commands:
+            - /triage: Full analysis - category, priority, summary, next steps
+            - /categorize: Determine and apply type label
+            - /prioritize: Determine and apply priority label
+            - /todo: Break into actionable tasks
+
+            If TARGET PROJECT is provided, also dispatch to that project.
+
+            Apply labels using gh CLI.
+          claude_args: |
+            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Read,Glob"

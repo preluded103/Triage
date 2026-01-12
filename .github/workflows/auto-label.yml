@@ -1,0 +1,48 @@
+name: Auto-Triage New Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  auto-triage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # OAuth token from Claude Max subscription (run `claude setup-token` locally)
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            ISSUE TITLE: ${{ github.event.issue.title }}
+            ISSUE BODY: ${{ github.event.issue.body }}
+            AUTHOR: ${{ github.event.issue.user.login }}
+
+            Perform initial triage on this new issue:
+
+            1. Determine category (feature, bug, research, docs, refactor)
+            2. Assess priority (p0-p3)
+            3. Write a brief summary comment
+            4. Apply appropriate labels
+
+            Label taxonomy:
+            - Types: type/feature, type/bug, type/research, type/docs, type/refactor
+            - Priority: priority/p0 (critical), priority/p1 (high), priority/p2 (medium), priority/p3 (low)
+            - Status: status/triaged
+
+            Respond with a comment containing:
+            ## Auto-Triage Results
+
+            **Category**: [type]
+            **Priority**: [level]
+            **Summary**: [one line]
+
+            Then apply labels: gh issue edit ${{ github.event.issue.number }} --add-label "type/...,priority/...,status/triaged"
+          claude_args: |
+            --allowedTools "Bash(gh issue:*)"
